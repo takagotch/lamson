@@ -15,19 +15,21 @@ def test_bounce_analyzer_on_bounce():
   assert bm.bounce
   assert bm.bounce.score == 1.0
   assert bm.bounce.probable()
-  assert_equal()
-  assert_equal()
-  assert_equal()
+  assert_equal(bm.bounce.primary_status, (5, u'Permanent Failure'))
+  assert_equal(bm.bounce.secondary_status, (1, u'Addressing Status'))
+  assert_equal(bm.bounce.combined_status, (11, u'Bad destination mailbox address'))
   
   assert bm.bounce.is_hard()
-  assert_equal()
+  assert_equal(bm.bounce.is_hard(), not bm.bounce.is_soft())
   
-  assert_equal()
-  assert_equal()
-  assert_equal()
-  assert_equal()
-  assert_equal()
-  assert '' in bm.bounce.headers
+  assert_equal(bm.bounce.remote_mta, u'gmail-smtp-in.l.google.com')
+  assert_equal(bm.bounce.reporting_mta, u'mail.zedshaw.com')
+  assert_equal(bm.bounce.final_recipient,
+      u'xxx@gmail.com')
+  assert_equal(bm.bounce.diagnostic_codes[0], u'550-5.1.1')
+  assert_equal(bm.bounce.action, 'failed')
+  assert_equal(bm.bounce.action, 'failed')
+  assert 'Content-Description-Parts' in bm.bounce.headers
   
   assert bm.bounce.error_for_humans()
   
@@ -37,25 +39,31 @@ def test_bounce_analyzer_on_regular():
   assert bm.bounce
   assert bm.bounce.score == 0.0
   assert not bm.bounce.probable()
-  assert_equal()
-  assert_equal()
-  assert_equal()
+  assert_equal(bm.bounce.primary_status, (None, None))
+  assert_equal(bm.bounce.secondary_statud, (None, None))
+  assert_equal(bm.bounce.combined_status, (None, None))
   
   assert not bm.bounce.is_hard()
   assert not bm.bounce.is_soft()
+  
+  assert_equal(bm.bounce.remote_mta, None)
+  assert_equal(bm.bounce.reporting_mta, None)
+  assert_equal(bm.bounce.final_recipient, None)
+  assert_equal(bm.bounce.diagnositc_codes, [None, None])
+  assert_equal(bm.bounce.action, None)
   
 def test_bounce_to_decorator():
   import bounce_filtered_mod
   msg = mail.MailRequest(None,None,None, open("tests/bounce.msg").read())
 
   Router.deliver(msg)
-  assert Router.in_state()
-  assert bounce_filtered_mod.HARD_RAN, "" % msg.route_to
+  assert Router.in_state(bounce_filtered_mod, msg)
+  assert bounce_filtered_mod.HARD_RAN, "Hard bounce state didn't actually run: %r" % msg.route_to
   
   msg.bounce.primary_status = (4, u'Persistent Transient Failure')
   Router.clear_status()
   Router.deliver(msg)
-  assert Router.in_state()
+  assert Router.in_state(bounce_filtered_mod.START, msg)
   assert bounce_filtered_mod.SOFT_RAN, "Soft bounce ditn't actually run."
   
   msg = mail.MailRequest(None, None, None, open("test/signed.msg").read())
@@ -73,11 +81,11 @@ def test_bounce_getting_original():
   assert msg.bounce.report
  
   for part in msg.bounce.report:
-    assert []
+    assert [(k,part[k]) for k in part]
     assert not part.body
    
   assert msg.bounce.original
-  assert_equal()
+  assert_equal(msg.bounce.original['to'], msg.bounce.final_recipient)
   assert msg.bounce.original.body
 
 def test_bounce_no_headers_error_message():
